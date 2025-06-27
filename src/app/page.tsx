@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2 } from 'lucide-react';
+import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ImageUploader } from '@/components/image-uploader';
 import { suggestSceneDescription } from '@/ai/flows/suggest-scene-description';
 import { generateSceneImage } from '@/ai/flows/generate-scene-image';
+import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -30,6 +32,8 @@ export default function StyleScenePage() {
 
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [clothingText, setClothingText] = useState('');
+  const [isGeneratingClothing, setIsGeneratingClothing] = useState(false);
 
   const { toast } = useToast();
 
@@ -48,6 +52,33 @@ export default function StyleScenePage() {
       setClothingImage(dataUri);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error uploading image', description: 'Could not read the clothing image file.' });
+    }
+  };
+
+  const handleGenerateClothing = async () => {
+    if (!clothingText) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Description',
+        description: 'Please describe the clothing you want to generate.',
+      });
+      return;
+    }
+
+    setIsGeneratingClothing(true);
+    setClothingImage(null);
+    try {
+      const result = await generateClothingImage({ description: clothingText });
+      setClothingImage(result.imageDataUri);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Clothing Generation Failed',
+        description: 'Could not generate the clothing image. Please try again.',
+      });
+    } finally {
+      setIsGeneratingClothing(false);
     }
   };
 
@@ -144,15 +175,74 @@ export default function StyleScenePage() {
               icon={<User className="h-10 w-10" />}
               data-ai-hint="person portrait"
             />
-            <ImageUploader
-              image={clothingImage}
-              onImageUpload={handleClothingImageUpload}
-              onRemove={() => setClothingImage(null)}
-              title="Clothing Image"
-              description="Upload a photo of an outfit."
-              icon={<Shirt className="h-10 w-10" />}
-              data-ai-hint="clothing flatlay"
-            />
+            
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shirt className="h-6 w-6" />
+                  Clothing Item
+                </CardTitle>
+                <CardDescription>
+                  Upload an image of an outfit, or generate one with AI.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col">
+                <Tabs defaultValue="upload" className="flex-grow flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">Upload Image</TabsTrigger>
+                    <TabsTrigger value="generate">Generate with AI</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upload" className="flex-grow mt-4">
+                    <ImageUploader
+                      image={clothingImage}
+                      onImageUpload={handleClothingImageUpload}
+                      onRemove={() => setClothingImage(null)}
+                      title="Upload Clothing"
+                      description="Drop a file or click to upload."
+                      icon={<UploadCloud className="h-10 w-10" />}
+                      data-ai-hint="clothing flatlay"
+                      className="h-full"
+                    />
+                  </TabsContent>
+                  <TabsContent value="generate" className="flex-grow mt-4 flex flex-col gap-4">
+                    <Textarea
+                      placeholder="e.g., a stylish red leather jacket with silver zippers..."
+                      className="resize-none"
+                      value={clothingText}
+                      onChange={(e) => setClothingText(e.target.value)}
+                      rows={3}
+                    />
+                    <Button onClick={handleGenerateClothing} disabled={isGeneratingClothing || !clothingText}>
+                      {isGeneratingClothing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-2 h-4 w-4" />
+                      )}
+                      Generate Clothing
+                    </Button>
+                    <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted flex-grow">
+                      {isGeneratingClothing && <Skeleton className="h-full w-full" />}
+                      {!isGeneratingClothing && clothingImage && (
+                        <Image
+                          src={clothingImage}
+                          alt="Uploaded or generated clothing"
+                          layout="fill"
+                          objectFit="contain"
+                          className="p-2"
+                        />
+                      )}
+                       {!isGeneratingClothing && !clothingImage && (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                          <Sparkles className="h-10 w-10" />
+                          <p className="text-sm">Your generated clothing will appear here</p>
+                        </div>
+                       )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
