@@ -44,31 +44,20 @@ const generateSceneImageFlow = ai.defineFlow(
     outputSchema: GenerateSceneImageOutputSchema,
   },
   async input => {
-    // Step 1: Use a text model to describe the person and clothing from the images.
-    const { text: description } = await ai.generate({
-      model: 'vertexai/gemini-1.5-flash',
-      prompt: [
-        { text: `You are an expert fashion stylist. Look at the person in the first image and the clothing in the second.
-        Create a detailed, photorealistic description of the person wearing the specified clothing.
-        Describe the person's appearance (e.g., gender, hair color, style) and the clothing's details (e.g., type, color, fabric, fit).
-        This description will be used by an AI image generator.
-        Person Image:` },
+    const prompt = [
+        { text: `Using the following images as reference, generate a new photorealistic image.
+The person from the first image should be wearing the clothing from the second image.
+Place the person in the following scene: "${input.sceneDescription}".
+The final image should be a coherent and high-quality photograph.
+Person reference:` },
         { media: { url: input.personDataUri } },
-        { text: `Clothing Image:` },
+        { text: `Clothing reference:` },
         { media: { url: input.clothingDataUri } },
-      ],
-    });
-
-    if (!description) {
-        throw new Error('Could not generate a description from the images.');
-    }
-
-    // Step 2: Use the generated description to create the final image with an image generation model.
-    const finalPrompt = `A photorealistic image of a person, described as: "${description}". The person is in the following scene: "${input.sceneDescription}". The overall image should be coherent and natural-looking.`;
+    ]
 
     const { media } = await ai.generate({
-      model: 'vertexai/imagegeneration@006',
-      prompt: finalPrompt,
+      model: 'vertexai/imagen-3.0-generate-002',
+      prompt,
       config: {
         responseModalities: ['IMAGE'],
       },
