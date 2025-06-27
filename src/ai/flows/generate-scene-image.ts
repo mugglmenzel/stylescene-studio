@@ -12,8 +12,7 @@ import {z} from 'zod';
 import {v1} from '@google-cloud/aiplatform';
 
 // Configure the client
-const {PredictionServiceClient} = v1;
-const {helpers} = v1;
+const {PredictionServiceClient, helpers} = v1;
 const clientOptions = {
   apiEndpoint: 'us-central1-aiplatform.googleapis.com',
 };
