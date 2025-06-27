@@ -43,14 +43,9 @@ export type GenerateSceneImageOutput = z.infer<
 export async function generateSceneImage(
   input: GenerateSceneImageInput
 ): Promise<GenerateSceneImageOutput> {
-  const projectId = process.env.GCLOUD_PROJECT;
+  // Use the client to automatically discover the project ID
+  const projectId = await predictionServiceClient.getProjectId();
   const location = 'us-central1';
-
-  if (!projectId) {
-    throw new Error(
-      'GCLOUD_PROJECT environment variable not set. This is required for Vertex AI calls.'
-    );
-  }
 
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
 
