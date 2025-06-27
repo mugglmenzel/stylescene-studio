@@ -39,7 +39,7 @@ const generateClothingImageFlow = ai.defineFlow(
   },
   async (input) => {
     const {media} = await ai.generate({
-      model: 'vertexai/imagegeneration@006',
+      model: 'vertexai/imagen-3.0-generate-002',
       prompt: `Generate a photorealistic image of this clothing item on a plain white background, suitable for a product catalog. The item should be the main focus. ${input.description}`,
       config: {
         responseModalities: ['IMAGE'],
