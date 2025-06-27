@@ -9,7 +9,8 @@
  */
 
 import {z} from 'zod';
-import {v1, helpers} from '@google-cloud/aiplatform';
+import {v1} from '@google-cloud/aiplatform';
+import {helpers} from '@google-cloud/aiplatform';
 
 // Configure the client
 const {PredictionServiceClient} = v1;
@@ -27,7 +28,7 @@ const GenerateClothingImageOutputSchema = z.object({
   imageDataUri: z
     .string()
     .describe(
-      "The generated clothing image, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The generated clothing image, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
 export type GenerateClothingImageOutput = z.infer<typeof GenerateClothingImageOutputSchema>;
@@ -38,8 +39,8 @@ export async function generateClothingImage(
   const projectId = await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
-  // Using the requested model
-  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-002`;
+  // Using a consistent model with the scene generation flow
+  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
 
   const instance = {
     prompt: `Generate a photorealistic image of this clothing item on a plain white background, suitable for a product catalog. The item should be the main focus. ${input.description}`,
