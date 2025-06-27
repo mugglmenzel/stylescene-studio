@@ -39,10 +39,10 @@ const generateClothingImageFlow = ai.defineFlow(
   },
   async (input) => {
     const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt: `Generate a photorealistic image of this clothing item on a plain white background, suitable for a product catalog. The item should be the main focus. Description: ${input.description}`,
+      model: 'vertexai/imagegeneration@006',
+      prompt: `Generate a photorealistic image of this clothing item on a plain white background, suitable for a product catalog. The item should be the main focus. ${input.description}`,
       config: {
-        responseModalities: ['TEXT', 'IMAGE'],
+        responseModalities: ['IMAGE'],
       },
     });
 

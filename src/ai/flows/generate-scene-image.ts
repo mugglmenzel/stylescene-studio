@@ -37,17 +37,6 @@ export async function generateSceneImage(input: GenerateSceneImageInput): Promis
   return generateSceneImageFlow(input);
 }
 
-const generateSceneImagePrompt = ai.definePrompt({
-  name: 'generateSceneImagePrompt',
-  input: {schema: GenerateSceneImageInputSchema},
-  output: {schema: GenerateSceneImageOutputSchema},
-  prompt: `Given the person in the first image, the clothing in the second image, and the following scene description, generate a photorealistic image of the person wearing the clothing in the described scene.
-
-Person Image: {{media url=personDataUri}}
-Clothing Image: {{media url=clothingDataUri}}
-Scene Description: {{{sceneDescription}}}`,
-});
-
 const generateSceneImageFlow = ai.defineFlow(
   {
     name: 'generateSceneImageFlow',
@@ -55,16 +44,33 @@ const generateSceneImageFlow = ai.defineFlow(
     outputSchema: GenerateSceneImageOutputSchema,
   },
   async input => {
-    // Generate the image using Gemini 2.0 Flash experimental image generation
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
+    // Step 1: Use a text model to describe the person and clothing from the images.
+    const { text: description } = await ai.generate({
+      model: 'vertexai/gemini-1.5-flash-preview-0514',
       prompt: [
-        {media: {url: input.personDataUri}},
-        {media: {url: input.clothingDataUri}},
-        {text: `wearing the clothes shown, in this scene: ${input.sceneDescription}`},
+        { text: `You are an expert fashion stylist. Look at the person in the first image and the clothing in the second.
+        Create a detailed, photorealistic description of the person wearing the specified clothing.
+        Describe the person's appearance (e.g., gender, hair color, style) and the clothing's details (e.g., type, color, fabric, fit).
+        This description will be used by an AI image generator.
+        Person Image:` },
+        { media: { url: input.personDataUri } },
+        { text: `Clothing Image:` },
+        { media: { url: input.clothingDataUri } },
       ],
+    });
+
+    if (!description) {
+        throw new Error('Could not generate a description from the images.');
+    }
+
+    // Step 2: Use the generated description to create the final image with an image generation model.
+    const finalPrompt = `A photorealistic image of a person, described as: "${description}". The person is in the following scene: "${input.sceneDescription}". The overall image should be coherent and natural-looking.`;
+
+    const { media } = await ai.generate({
+      model: 'vertexai/imagegeneration@006',
+      prompt: finalPrompt,
       config: {
-        responseModalities: ['TEXT', 'IMAGE'],
+        responseModalities: ['IMAGE'],
       },
     });
 
@@ -72,6 +78,6 @@ const generateSceneImageFlow = ai.defineFlow(
       throw new Error('No image was generated.');
     }
 
-    return {generatedImageDataUri: media.url};
+    return { generatedImageDataUri: media.url };
   }
 );
