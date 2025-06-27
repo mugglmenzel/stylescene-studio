@@ -10,6 +10,7 @@
 
 import {z} from 'zod';
 import {VertexAI} from '@google-cloud/vertexai';
+import {v1} from '@google-cloud/aiplatform';
 
 const GenerateClothingImageInputSchema = z.object({
   description: z.string().describe('A text description of the clothing item.'),
@@ -28,7 +29,13 @@ export type GenerateClothingImageOutput = z.infer<typeof GenerateClothingImageOu
 export async function generateClothingImage(
   input: GenerateClothingImageInput
 ): Promise<GenerateClothingImageOutput> {
-  const vertexAI = new VertexAI({location: 'us-central1'});
+  const clientOptions = {
+    apiEndpoint: 'us-central1-aiplatform.googleapis.com',
+  };
+  const predictionServiceClient = new v1.PredictionServiceClient(clientOptions);
+  const projectId = await predictionServiceClient.getProjectId();
+
+  const vertexAI = new VertexAI({project: projectId, location: 'us-central1'});
 
   // Use the Imagen 3 text-to-image model.
   const generativeModel = vertexAI.getGenerativeModel({
