@@ -112,11 +112,11 @@ export default function StyleScenePage() {
   };
 
   const handleGenerateImage = async () => {
-    if (!personImage || !clothingImage || !sceneDescription) {
+    if (!personImage || !sceneDescription) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please upload both images and provide a scene description.',
+        description: 'Please upload a person image and provide a scene description.',
       });
       return;
     }
@@ -126,7 +126,6 @@ export default function StyleScenePage() {
     try {
       const result = await generateSceneImage({
         personDataUri: personImage,
-        clothingDataUri: clothingImage,
         sceneDescription,
       });
       setGeneratedImage(result.generatedImageDataUri);
@@ -276,7 +275,7 @@ export default function StyleScenePage() {
               <CardFooter>
                 <Button
                   onClick={handleGenerateImage}
-                  disabled={isGenerating || !personImage || !clothingImage || !sceneDescription}
+                  disabled={isGenerating || !personImage || !sceneDescription}
                   className="w-full"
                   style={{
                     backgroundColor: 'hsl(var(--accent))',
