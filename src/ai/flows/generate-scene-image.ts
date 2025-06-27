@@ -46,7 +46,7 @@ const generateSceneImageFlow = ai.defineFlow(
   async input => {
     // Step 1: Use a text model to describe the person and clothing from the images.
     const { text: description } = await ai.generate({
-      model: 'vertexai/gemini-1.5-flash-preview-0514',
+      model: 'vertexai/gemini-1.5-flash',
       prompt: [
         { text: `You are an expert fashion stylist. Look at the person in the first image and the clothing in the second.
         Create a detailed, photorealistic description of the person wearing the specified clothing.
