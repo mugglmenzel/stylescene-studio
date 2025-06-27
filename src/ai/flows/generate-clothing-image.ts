@@ -9,8 +9,7 @@
  */
 
 import {z} from 'zod';
-import {v1} from '@google-cloud/aiplatform';
-import {helpers} from '@google-cloud/aiplatform';
+import {v1, helpers} from '@google-cloud/aiplatform';
 
 // Configure the client
 const {PredictionServiceClient} = v1;
@@ -39,8 +38,8 @@ export async function generateClothingImage(
   const projectId = await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
-  // Using a consistent model with the scene generation flow
-  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
+  // Using a model specifically for text-to-image generation.
+  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@005`;
 
   const instance = {
     prompt: `Generate a photorealistic image of this clothing item on a plain white background, suitable for a product catalog. The item should be the main focus. ${input.description}`,
