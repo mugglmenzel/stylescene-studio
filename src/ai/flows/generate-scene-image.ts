@@ -43,7 +43,7 @@ export async function generateSceneImage(
   input: GenerateSceneImageInput
 ): Promise<GenerateSceneImageOutput> {
   // Use the client to automatically discover the project ID
-  const projectId = await predictionServiceClient.getProjectId();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
@@ -52,11 +52,15 @@ export async function generateSceneImage(
   const personImageBase64 = input.personDataUri.split(',')[1];
 
   const instance = {
-    prompt: `Generate a photorealistic image of the person from the reference image in this scene: "${input.sceneDescription}". The final image should be a coherent and high-quality photograph.`,
-    image: {
-      bytesBase64Encoded: personImageBase64,
-      mimeType: personImageMimeType,
-    },
+    prompt: `Generate a photorealistic image of the person [1] from the reference image in this scene: "${input.sceneDescription}". The final image should be a coherent and high-quality photograph.`,
+    referenceImages: [{
+      referenceType: "REFERENCE_TYPE_RAW",
+      referenceId: 1,
+      referenceImage: {
+        bytesBase64Encoded: personImageBase64,
+        mimeType: personImageMimeType,
+      },
+    }],
   };
 
   const instances = [helpers.toValue(instance)];

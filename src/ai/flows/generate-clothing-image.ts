@@ -36,7 +36,7 @@ export async function generateClothingImage(
   input: GenerateClothingImageInput
 ): Promise<GenerateClothingImageOutput> {
   // Use the client to automatically discover the project ID
-  const projectId = await predictionServiceClient.getProjectId();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
   // Use a text-to-image model like Imagen 4.
