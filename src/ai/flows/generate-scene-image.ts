@@ -43,7 +43,7 @@ export async function generateSceneImage(
   input: GenerateSceneImageInput
 ): Promise<GenerateSceneImageOutput> {
   // Use the client to automatically discover the project ID
-  const projectId = process.env.GOOGLE_CLOUD_PROJECT || await predictionServiceClient.getProjectId();
+  const projectId = process.env.GCP_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;

@@ -47,7 +47,7 @@ export async function generateRedressImage(
   input: GenerateRedressImageInput
 ): Promise<GenerateRedressImageOutput> {
   // Use the client to automatically discover the project ID
-  const projectId = await predictionServiceClient.getProjectId();
+  const projectId = process.env.GCP_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/virtual-try-on-exp-05-31`;
