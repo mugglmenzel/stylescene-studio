@@ -18,45 +18,57 @@ const clientOptions = {
 };
 const predictionServiceClient = new PredictionServiceClient(clientOptions);
 
-const GenerateSceneImageInputSchema = z.object({
+const GenerateRedressImageInputSchema = z.object({
   personDataUri: z
     .string()
     .describe(
       "A photo of a person, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  sceneDescription: z.string().describe('The description of the scene.'),
+  clothingDataUri: z
+    .string()
+    .describe(
+      "A photo of a garment or clothes, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
 });
-export type GenerateSceneImageInput = z.infer<typeof GenerateSceneImageInputSchema>;
+export type GenerateRedressImageInput = z.infer<typeof GenerateRedressImageInputSchema>;
 
-const GenerateSceneImageOutputSchema = z.object({
+const GenerateRedressImageOutputSchema = z.object({
   generatedImageDataUri: z
     .string()
     .describe(
       "The generated image, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
-export type GenerateSceneImageOutput = z.infer<
-  typeof GenerateSceneImageOutputSchema
+export type GenerateRedressImageOutput = z.infer<
+  typeof GenerateRedressImageOutputSchema
 >;
 
 export async function generateSceneImage(
-  input: GenerateSceneImageInput
-): Promise<GenerateSceneImageOutput> {
+  input: GenerateRedressImageInput
+): Promise<GenerateRedressImageOutput> {
   // Use the client to automatically discover the project ID
   const projectId = await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
-  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
+  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/virtual-try-on-exp-05-31`;
 
   const personImageMimeType = input.personDataUri.split(';')[0].split(':')[1];
   const personImageBase64 = input.personDataUri.split(',')[1];
 
+  const clothingImageMimeType = input.clothingDataUri.split(';')[0].split(':')[1];
+  const clothingImageBase64 = input.clothingDataUri.split(',')[1];
+
   const instance = {
-    prompt: `Generate a photorealistic image of the person from the reference image in this scene: "${input.sceneDescription}". The final image should be a coherent and high-quality photograph.`,
-    image: {
+    personImage: {"image": {
       bytesBase64Encoded: personImageBase64,
       mimeType: personImageMimeType,
-    },
+    }},
+    productImages: [{
+      "image": {
+        bytesBase64Encoded: clothingImageBase64,
+        mimeType: clothingImageMimeType,
+      }
+    }]
   };
 
   const instances = [helpers.toValue(instance)];
