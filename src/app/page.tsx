@@ -14,6 +14,7 @@ import { suggestSceneDescription } from '@/ai/flows/suggest-scene-description';
 import { generateSceneImage } from '@/ai/flows/generate-scene-image';
 import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
 import { generateRedressImage } from '@/ai/flows/generate-redress-image';
+import { generatePersonImage } from '@/ai/flows/generate-person-image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -34,6 +35,10 @@ export default function StyleScenePage() {
 
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const [personText, setPersonText] = useState('');
+  const [isGeneratingPerson, setIsGeneratingPerson] = useState(false);
+
   const [clothingText, setClothingText] = useState('');
   const [isGeneratingClothing, setIsGeneratingClothing] = useState(false);
 
@@ -54,6 +59,33 @@ export default function StyleScenePage() {
       setClothingImage(dataUri);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error uploading image', description: 'Could not read the clothing image file.' });
+    }
+  };
+
+  const handleGeneratePerson = async () => {
+    if (!personText) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Description',
+        description: 'Please describe the person you want to generate.',
+      });
+      return;
+    }
+
+    setIsGeneratingPerson(true);
+    setPersonImage(null);
+    try {
+      const result = await generatePersonImage({ description: personText });
+      setPersonImage(result.imageDataUri);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Person Generation Failed',
+        description: 'Could not generate the person image. Please try again.',
+      });
+    } finally {
+      setIsGeneratingPerson(false);
     }
   };
 
@@ -178,15 +210,72 @@ export default function StyleScenePage() {
       <main className="container mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:col-span-2">
-            <ImageUploader
-              image={personImage}
-              onImageUpload={handlePersonImageUpload}
-              onRemove={() => setPersonImage(null)}
-              title="Person Image"
-              description="Upload a photo of a person."
-              icon={<User className="h-10 w-10" />}
-              data-ai-hint="person portrait"
-            />
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-6 w-6" />
+                  Person Image
+                </CardTitle>
+                <CardDescription>
+                  Upload a photo of a person, or generate one with AI.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow flex flex-col">
+                <Tabs defaultValue="upload" className="flex-grow flex flex-col">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">Upload Image</TabsTrigger>
+                    <TabsTrigger value="generate">Generate with AI</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upload" className="flex-grow mt-4">
+                    <ImageUploader
+                      image={personImage}
+                      onImageUpload={handlePersonImageUpload}
+                      onRemove={() => setPersonImage(null)}
+                      title="Upload Person"
+                      description="Drop a file or click to upload."
+                      icon={<UploadCloud className="h-10 w-10" />}
+                      data-ai-hint="person portrait"
+                      className="h-full"
+                    />
+                  </TabsContent>
+                  <TabsContent value="generate" className="flex-grow mt-4 flex flex-col gap-4">
+                    <Textarea
+                      placeholder="e.g., a woman with long blonde hair, wearing a black t-shirt, standing in a studio..."
+                      className="resize-none"
+                      value={personText}
+                      onChange={(e) => setPersonText(e.target.value)}
+                      rows={3}
+                    />
+                    <Button onClick={handleGeneratePerson} disabled={isGeneratingPerson || !personText}>
+                      {isGeneratingPerson ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-2 h-4 w-4" />
+                      )}
+                      Generate Person
+                    </Button>
+                    <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted flex-grow">
+                      {isGeneratingPerson && <Skeleton className="h-full w-full" />}
+                      {!isGeneratingPerson && personImage && (
+                        <Image
+                          src={personImage}
+                          alt="Uploaded or generated person"
+                          layout="fill"
+                          objectFit="contain"
+                          className="p-2"
+                        />
+                      )}
+                       {!isGeneratingPerson && !personImage && (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                          <Sparkles className="h-10 w-10" />
+                          <p className="text-sm">Your generated person will appear here</p>
+                        </div>
+                       )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
             
             <Card className="flex flex-col">
               <CardHeader>
