@@ -54,12 +54,16 @@ export async function generateSceneImage(
   const instance = {
     prompt: `Generate a photorealistic image of the person [1] from the reference image in this scene: "${input.sceneDescription}". The final image should be a coherent and high-quality photograph.`,
     referenceImages: [{
-      referenceType: "REFERENCE_TYPE_RAW",
+      referenceType: "REFERENCE_TYPE_SUBJECT",
       referenceId: 1,
       referenceImage: {
         bytesBase64Encoded: personImageBase64,
         mimeType: personImageMimeType,
       },
+      subjectImageConfig: {
+        subjectDescription: "the person",
+        subjectType: "SUBJECT_TYPE_PERSON"
+      }
     }],
   };
 
