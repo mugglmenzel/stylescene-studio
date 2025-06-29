@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud } from 'lucide-react';
+import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, ArrowDown } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,8 @@ import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
 import { generateRedressImage } from '@/ai/flows/generate-redress-image';
 import { generatePersonImage } from '@/ai/flows/generate-person-image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -34,7 +36,8 @@ export default function StyleScenePage() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingRedress, setIsGeneratingRedress] = useState(false);
+  const [isGeneratingScene, setIsGeneratingScene] = useState(false);
 
   const [personText, setPersonText] = useState('');
   const [isGeneratingPerson, setIsGeneratingPerson] = useState(false);
@@ -145,32 +148,54 @@ export default function StyleScenePage() {
     }
   };
 
-  const handleGenerateImage = async () => {
-    if (!personImage || !clothingImage || !sceneDescription) {
+  const handleGenerateRedress = async () => {
+    if (!personImage || !clothingImage) {
       toast({
         variant: 'destructive',
-        title: 'Missing Information',
-        description: 'Please provide a person image, clothing, and a scene description.',
+        title: 'Missing Images',
+        description: 'Please provide both a person and a clothing image.',
       });
       return;
     }
 
-    setIsGenerating(true);
+    setIsGeneratingRedress(true);
     setRedressedImage(null);
     setGeneratedImage(null);
 
     try {
-      // Step 1: Redress the person with the new clothing
       const redressResult = await generateRedressImage({
         personDataUri: personImage,
         clothingDataUri: clothingImage,
       });
-      const redressedImageDataUri = redressResult.generatedImageDataUri;
-      setRedressedImage(redressedImageDataUri);
+      setRedressedImage(redressResult.generatedImageDataUri);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Redress Generation Failed',
+        description: 'Could not generate the redressed image. Please try again.',
+      });
+    } finally {
+      setIsGeneratingRedress(false);
+    }
+  };
 
-      // Step 2: Place the redressed person in a new scene
+  const handleGenerateScene = async () => {
+    if (!redressedImage || !sceneDescription) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please generate a redressed image and provide a scene description.',
+      });
+      return;
+    }
+
+    setIsGeneratingScene(true);
+    setGeneratedImage(null);
+
+    try {
       const sceneResult = await generateSceneImage({
-        personDataUri: redressedImageDataUri,
+        personDataUri: redressedImage,
         sceneDescription,
       });
       setGeneratedImage(sceneResult.generatedImageDataUri);
@@ -178,27 +203,28 @@ export default function StyleScenePage() {
       console.error(error);
       toast({
         variant: 'destructive',
-        title: 'Generation Failed',
-        description: 'Could not generate the images. Please try again.',
+        title: 'Scene Generation Failed',
+        description: 'Could not generate the final scene. Please try again.',
       });
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingScene(false);
     }
   };
-
-  const handleDownload = () => {
-    if (!generatedImage) return;
+  
+  const handleDownload = (imageUrl: string | null, filename: string) => {
+    if (!imageUrl) return;
     const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = 'stylescene-image.png';
+    link.href = imageUrl;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+
   return (
     <div className="min-h-screen w-full bg-background">
-      <header className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Palette className="h-7 w-7 text-primary" />
@@ -207,9 +233,15 @@ export default function StyleScenePage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:col-span-2">
+      <main className="container mx-auto flex flex-col gap-8 p-4 md:p-8">
+        {/* STEP 1: VIRTUAL TRY-ON */}
+        <div className="space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Step 1: Create Your Look</h2>
+            <p className="text-muted-foreground mt-2">Start by providing an image of a person and a clothing item, either by uploading or generating with AI.</p>
+          </div>
+          {/* Input Cards */}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -260,7 +292,7 @@ export default function StyleScenePage() {
                         <Image
                           src={personImage}
                           alt="Uploaded or generated person"
-                          layout="fill"
+                          fill
                           objectFit="contain"
                           className="p-2"
                         />
@@ -327,7 +359,7 @@ export default function StyleScenePage() {
                         <Image
                           src={clothingImage}
                           alt="Uploaded or generated clothing"
-                          layout="fill"
+                          fill
                           objectFit="contain"
                           className="p-2"
                         />
@@ -343,119 +375,144 @@ export default function StyleScenePage() {
                 </Tabs>
               </CardContent>
             </Card>
-
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wand2 className="h-6 w-6" />
-                  Create Your Scene
-                </CardTitle>
-                <CardDescription>
-                  Describe the scene where you want to place the person wearing the clothes. Or, let AI suggest one for you!
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="e.g., walking through a neon-lit cyberpunk city at night, rain glistening on the pavement..."
-                  className="min-h-[120px] resize-y"
-                  value={sceneDescription}
-                  onChange={(e) => setSceneDescription(e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleSuggestDescription}
-                  disabled={isSuggesting || !personImage || !clothingImage}
-                >
-                  {isSuggesting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Suggest Scene
-                </Button>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  onClick={handleGenerateImage}
-                  disabled={isGenerating || !personImage || !clothingImage || !sceneDescription}
-                  className="w-full"
-                  style={{
-                    backgroundColor: 'hsl(var(--accent))',
-                    color: 'hsl(var(--accent-foreground))'
-                  }}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Generate Images
-                </Button>
-              </CardFooter>
-            </Card>
           </div>
 
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24">
+          <Card>
+            <CardHeader>
+              <CardTitle>Generate Redressed Image</CardTitle>
+              <CardDescription>Combine the person and clothing item to see the virtual try-on result. The result will be used in the next step.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="flex flex-col gap-4 items-center text-center">
+                 <p className="text-muted-foreground">Once you have both images ready, click the button to generate the new look.</p>
+                 <Button onClick={handleGenerateRedress} disabled={!personImage || !clothingImage || isGeneratingRedress} size="lg" className="w-full max-w-xs">
+                   {isGeneratingRedress ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                   Generate Look
+                 </Button>
+              </div>
+              <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
+                {isGeneratingRedress ? <Skeleton className="h-full w-full" /> : null}
+                {redressedImage && (
+                  <>
+                    <Image
+                      src={redressedImage}
+                      alt="Redressed person"
+                      fill
+                      objectFit="cover"
+                    />
+                    <Button
+                      onClick={() => handleDownload(redressedImage, 'redressed-image.png')}
+                      size="icon"
+                      className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
+                      style={{
+                          backgroundColor: 'hsl(var(--accent))',
+                          color: 'hsl(var(--accent-foreground))'
+                      }}
+                      aria-label="Download Redressed Image"
+                    >
+                      <Download className="h-6 w-6" />
+                    </Button>
+                  </>
+                )}
+                {!isGeneratingRedress && !redressedImage && (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                    <User className="h-12 w-12" />
+                    <p className="text-sm">Virtual try-on result appears here</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className={cn("space-y-8", !redressedImage && "opacity-50 pointer-events-none")}>
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Step 2: Set the Scene</h2>
+            <p className="text-muted-foreground mt-2">Now, place your newly styled person in any scene you can imagine.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <Card className="flex flex-col">
               <CardHeader>
-                <CardTitle>Generated Images</CardTitle>
-                <CardDescription>Your creations will appear here.</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-6 w-6" />
+                    Scene Description
+                  </CardTitle>
+                  <CardDescription>
+                    Describe the final scene. Or, let AI suggest one based on your images!
+                  </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">1. Redressed Person</h3>
-                  <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
-                    {isGenerating && !redressedImage ? <Skeleton className="h-full w-full" /> : null}
-                    {redressedImage && (
-                        <Image
-                            src={redressedImage}
-                            alt="Redressed person"
-                            layout="fill"
-                            objectFit="cover"
-                        />
-                    )}
-                    {!isGenerating && !redressedImage && (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
-                        <User className="h-12 w-12" />
-                        <p className="text-sm">Virtual try-on result appears here</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">2. Final Scene</h3>
-                  <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
-                    {isGenerating && !generatedImage ? <Skeleton className="h-full w-full" /> : null}
-                    {generatedImage && (
-                      <>
-                        <Image
-                          src={generatedImage}
-                          alt="Generated scene"
-                          layout="fill"
-                          objectFit="cover"
-                          className="transition-opacity duration-500 hover:opacity-90"
-                        />
-                        <Button
-                          onClick={handleDownload}
-                          size="icon"
-                          className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
-                          style={{
-                              backgroundColor: 'hsl(var(--accent))',
-                              color: 'hsl(var(--accent-foreground))'
-                          }}
-                          aria-label="Download Image"
-                        >
-                          <Download className="h-6 w-6" />
-                        </Button>
-                      </>
-                    )}
-                    {!isGenerating && !generatedImage && (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
-                        <Palette className="h-12 w-12" />
-                        <p className="text-sm">Your final image appears here</p>
-                      </div>
-                    )}
-                  </div>
+              <CardContent className="space-y-4 flex-grow">
+                  <Textarea
+                    placeholder="e.g., walking through a neon-lit cyberpunk city at night, rain glistening on the pavement..."
+                    className="min-h-[150px] resize-y"
+                    value={sceneDescription}
+                    onChange={(e) => setSceneDescription(e.target.value)}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleSuggestDescription}
+                    disabled={isSuggesting || !personImage || !clothingImage}
+                  >
+                    {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Suggest Scene
+                  </Button>
+              </CardContent>
+              <CardFooter>
+                  <Button
+                    onClick={handleGenerateScene}
+                    disabled={isGeneratingScene || !redressedImage || !sceneDescription}
+                    className="w-full"
+                    size="lg"
+                    style={{
+                      backgroundColor: 'hsl(var(--accent))',
+                      color: 'hsl(var(--accent-foreground))'
+                    }}
+                  >
+                    {isGeneratingScene ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Generate Final Scene
+                  </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="flex flex-col">
+              <CardHeader>
+                  <CardTitle>Final Image</CardTitle>
+                  <CardDescription>Your final creation will appear here.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted h-full">
+                  {isGeneratingScene ? <Skeleton className="h-full w-full" /> : null}
+                  {generatedImage && (
+                    <>
+                      <Image
+                        src={generatedImage}
+                        alt="Generated scene"
+                        fill
+                        objectFit="cover"
+                        className="transition-opacity duration-500 hover:opacity-90"
+                      />
+                      <Button
+                        onClick={() => handleDownload(generatedImage, 'final-scene.png')}
+                        size="icon"
+                        className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
+                        style={{
+                            backgroundColor: 'hsl(var(--accent))',
+                            color: 'hsl(var(--accent-foreground))'
+                        }}
+                        aria-label="Download Final Image"
+                      >
+                        <Download className="h-6 w-6" />
+                      </Button>
+                    </>
+                  )}
+                  {!isGeneratingScene && !generatedImage && (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                      <Palette className="h-12 w-12" />
+                      <p className="text-sm">Your final image appears here</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
