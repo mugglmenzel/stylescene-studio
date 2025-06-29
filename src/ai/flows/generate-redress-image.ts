@@ -3,9 +3,9 @@
 /**
  * @fileOverview Combines a person image and scene description to generate a new image using Vertex AI SDK.
  *
- * - generateSceneImage - A function that handles the image generation process.
- * - GenerateSceneImageInput - The input type for the generateSceneImage function.
- * - GenerateSceneImageOutput - The return type for the generateSceneImage function.
+ * - generateRedressImage - A function that handles the image generation process.
+ * - GenerateRedressImageInput - The input type for the generateRedressImage function.
+ * - GenerateRedressImageOutput - The return type for the generateRedressImage function.
  */
 
 import {z} from 'zod';
@@ -43,7 +43,7 @@ export type GenerateRedressImageOutput = z.infer<
   typeof GenerateRedressImageOutputSchema
 >;
 
-export async function generateSceneImage(
+export async function generateRedressImage(
   input: GenerateRedressImageInput
 ): Promise<GenerateRedressImageOutput> {
   // Use the client to automatically discover the project ID

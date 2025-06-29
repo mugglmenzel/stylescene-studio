@@ -13,6 +13,7 @@ import { ImageUploader } from '@/components/image-uploader';
 import { suggestSceneDescription } from '@/ai/flows/suggest-scene-description';
 import { generateSceneImage } from '@/ai/flows/generate-scene-image';
 import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
+import { generateRedressImage } from '@/ai/flows/generate-redress-image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -28,6 +29,7 @@ export default function StyleScenePage() {
   const [personImage, setPersonImage] = useState<string | null>(null);
   const [clothingImage, setClothingImage] = useState<string | null>(null);
   const [sceneDescription, setSceneDescription] = useState<string>('');
+  const [redressedImage, setRedressedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -112,29 +114,40 @@ export default function StyleScenePage() {
   };
 
   const handleGenerateImage = async () => {
-    if (!personImage || !sceneDescription) {
+    if (!personImage || !clothingImage || !sceneDescription) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please upload a person image and provide a scene description.',
+        description: 'Please provide a person image, clothing, and a scene description.',
       });
       return;
     }
 
     setIsGenerating(true);
+    setRedressedImage(null);
     setGeneratedImage(null);
+
     try {
-      const result = await generateSceneImage({
+      // Step 1: Redress the person with the new clothing
+      const redressResult = await generateRedressImage({
         personDataUri: personImage,
+        clothingDataUri: clothingImage,
+      });
+      const redressedImageDataUri = redressResult.generatedImageDataUri;
+      setRedressedImage(redressedImageDataUri);
+
+      // Step 2: Place the redressed person in a new scene
+      const sceneResult = await generateSceneImage({
+        personDataUri: redressedImageDataUri,
         sceneDescription,
       });
-      setGeneratedImage(result.generatedImageDataUri);
+      setGeneratedImage(sceneResult.generatedImageDataUri);
     } catch (error) {
       console.error(error);
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
-        description: 'Could not generate the image. Please try again.',
+        description: 'Could not generate the images. Please try again.',
       });
     } finally {
       setIsGenerating(false);
@@ -275,7 +288,7 @@ export default function StyleScenePage() {
               <CardFooter>
                 <Button
                   onClick={handleGenerateImage}
-                  disabled={isGenerating || !personImage || !sceneDescription}
+                  disabled={isGenerating || !personImage || !clothingImage || !sceneDescription}
                   className="w-full"
                   style={{
                     backgroundColor: 'hsl(var(--accent))',
@@ -287,7 +300,7 @@ export default function StyleScenePage() {
                   ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                   )}
-                  Generate Image
+                  Generate Images
                 </Button>
               </CardFooter>
             </Card>
@@ -296,41 +309,64 @@ export default function StyleScenePage() {
           <div className="lg:col-span-1">
             <Card className="sticky top-24">
               <CardHeader>
-                <CardTitle>Generated Image</CardTitle>
-                <CardDescription>Your creation will appear here.</CardDescription>
+                <CardTitle>Generated Images</CardTitle>
+                <CardDescription>Your creations will appear here.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
-                  {isGenerating && <Skeleton className="h-full w-full" />}
-                  {!isGenerating && generatedImage && (
-                    <>
-                      <Image
-                        src={generatedImage}
-                        alt="Generated scene"
-                        layout="fill"
-                        objectFit="cover"
-                        className="transition-opacity duration-500 hover:opacity-90"
-                      />
-                      <Button
-                        onClick={handleDownload}
-                        size="icon"
-                        className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
-                        style={{
-                            backgroundColor: 'hsl(var(--accent))',
-                            color: 'hsl(var(--accent-foreground))'
-                        }}
-                        aria-label="Download Image"
-                      >
-                        <Download className="h-6 w-6" />
-                      </Button>
-                    </>
-                  )}
-                  {!isGenerating && !generatedImage && (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <Palette className="h-12 w-12" />
-                      <p>Your image awaits</p>
-                    </div>
-                  )}
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">1. Redressed Person</h3>
+                  <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
+                    {isGenerating && !redressedImage ? <Skeleton className="h-full w-full" /> : null}
+                    {redressedImage && (
+                        <Image
+                            src={redressedImage}
+                            alt="Redressed person"
+                            layout="fill"
+                            objectFit="cover"
+                        />
+                    )}
+                    {!isGenerating && !redressedImage && (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                        <User className="h-12 w-12" />
+                        <p className="text-sm">Virtual try-on result appears here</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">2. Final Scene</h3>
+                  <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
+                    {isGenerating && !generatedImage ? <Skeleton className="h-full w-full" /> : null}
+                    {generatedImage && (
+                      <>
+                        <Image
+                          src={generatedImage}
+                          alt="Generated scene"
+                          layout="fill"
+                          objectFit="cover"
+                          className="transition-opacity duration-500 hover:opacity-90"
+                        />
+                        <Button
+                          onClick={handleDownload}
+                          size="icon"
+                          className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
+                          style={{
+                              backgroundColor: 'hsl(var(--accent))',
+                              color: 'hsl(var(--accent-foreground))'
+                          }}
+                          aria-label="Download Image"
+                        >
+                          <Download className="h-6 w-6" />
+                        </Button>
+                      </>
+                    )}
+                    {!isGenerating && !generatedImage && (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                        <Palette className="h-12 w-12" />
+                        <p className="text-sm">Your final image appears here</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
