@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play } from 'lucide-react';
+import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play, Maximize } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
 import { generateRedressImage } from '@/ai/flows/generate-redress-image';
 import { generatePersonImage } from '@/ai/flows/generate-person-image';
 import { generateVideo } from '@/ai/flows/generate-video';
+import { outpaintImage } from '@/ai/flows/outpaint-image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -35,11 +36,13 @@ export default function StyleScenePage() {
   const [sceneDescription, setSceneDescription] = useState<string>('');
   const [redressedImage, setRedressedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [outpaintedImage, setOutpaintedImage] = useState<string | null>(null);
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
 
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isGeneratingRedress, setIsGeneratingRedress] = useState(false);
   const [isGeneratingScene, setIsGeneratingScene] = useState(false);
+  const [isOutpainting, setIsOutpainting] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   const [personText, setPersonText] = useState('');
@@ -164,6 +167,7 @@ export default function StyleScenePage() {
     setIsGeneratingRedress(true);
     setRedressedImage(null);
     setGeneratedImage(null);
+    setOutpaintedImage(null);
     setGeneratedVideo(null);
 
     try {
@@ -196,6 +200,7 @@ export default function StyleScenePage() {
 
     setIsGeneratingScene(true);
     setGeneratedImage(null);
+    setOutpaintedImage(null);
     setGeneratedVideo(null);
 
     try {
@@ -216,8 +221,38 @@ export default function StyleScenePage() {
     }
   };
 
-  const handleGenerateVideo = async () => {
+  const handleOutpaintImage = async () => {
     if (!generatedImage) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Image',
+        description: 'Please generate the final scene image first.',
+      });
+      return;
+    }
+
+    setIsOutpainting(true);
+    setOutpaintedImage(null);
+    setGeneratedVideo(null); // Also reset video if we're changing the source image
+
+    try {
+      const result = await outpaintImage({ imageDataUri: generatedImage });
+      setOutpaintedImage(result.generatedImageDataUri);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Outpainting Failed',
+        description: 'Could not outpaint the image. Please try again.',
+      });
+    } finally {
+      setIsOutpainting(false);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    const imageToAnimate = outpaintedImage || generatedImage;
+    if (!imageToAnimate) {
       toast({
         variant: 'destructive',
         title: 'Missing Image',
@@ -231,7 +266,7 @@ export default function StyleScenePage() {
 
     try {
       const result = await generateVideo({
-        imageDataUri: generatedImage,
+        imageDataUri: imageToAnimate,
       });
       setGeneratedVideo(result.videoDataUri);
     } catch (error) {
@@ -514,22 +549,22 @@ export default function StyleScenePage() {
             <Card className="flex flex-col">
               <CardHeader>
                   <CardTitle>Final Image</CardTitle>
-                  <CardDescription>Your final creation will appear here.</CardDescription>
+                  <CardDescription>Your final creation will appear here. You can then widen it or animate it.</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted h-full">
-                  {isGeneratingScene ? <Skeleton className="h-full w-full" /> : null}
-                  {generatedImage && (
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted h-full">
+                  {isGeneratingScene || isOutpainting ? <Skeleton className="h-full w-full" /> : null}
+                  {(outpaintedImage || generatedImage) && !(isGeneratingScene || isOutpainting) && (
                     <>
                       <Image
-                        src={generatedImage}
+                        src={outpaintedImage || generatedImage!}
                         alt="Generated scene"
                         fill
                         objectFit="cover"
-                        className="transition-opacity duration-500 hover:opacity-90"
+                        className="transition-opacity duration-500"
                       />
                       <Button
-                        onClick={() => handleDownload(generatedImage, 'final-scene.png')}
+                        onClick={() => handleDownload(outpaintedImage || generatedImage, 'final-scene.png')}
                         size="icon"
                         className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
                         style={{
@@ -540,9 +575,20 @@ export default function StyleScenePage() {
                       >
                         <Download className="h-6 w-6" />
                       </Button>
+                      {generatedImage && !outpaintedImage && (
+                          <Button
+                              onClick={handleOutpaintImage}
+                              disabled={isOutpainting}
+                              className="absolute bottom-4 left-4 z-10 h-12 shadow-lg"
+                              variant="outline"
+                          >
+                              {isOutpainting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Maximize className="mr-2 h-4 w-4" />}
+                              Widen to 16:9
+                          </Button>
+                      )}
                     </>
                   )}
-                  {!isGeneratingScene && !generatedImage && (
+                  {!(isGeneratingScene || isOutpainting) && !generatedImage && (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
                       <Palette className="h-12 w-12" />
                       <p className="text-sm">Your final image appears here</p>
@@ -556,7 +602,7 @@ export default function StyleScenePage() {
         
         <Separator className="my-4" />
 
-        <div className={cn("space-y-8", !generatedImage && "opacity-50 pointer-events-none")}>
+        <div className={cn("space-y-8", !(generatedImage || outpaintedImage) && "opacity-50 pointer-events-none")}>
           <div className="text-center">
             <h2 className="text-3xl font-bold tracking-tight">Step 3: Animate Your Scene</h2>
             <p className="text-muted-foreground mt-2">Bring your creation to life by generating a short video.</p>
@@ -574,12 +620,12 @@ export default function StyleScenePage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div className="flex flex-col gap-4 items-center text-center">
                 <p className="text-muted-foreground">Once your final scene is ready, click the button to create a video.</p>
-                <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo || !generatedImage} size="lg" className="w-full max-w-xs">
+                <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo || !(generatedImage || outpaintedImage)} size="lg" className="w-full max-w-xs">
                   {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
                   Generate Video
                 </Button>
               </div>
-              <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
+              <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
                 {isGeneratingVideo ? <Skeleton className="h-full w-full" /> : null}
                 {generatedVideo && (
                   <>

@@ -7,3 +7,4 @@ import '@/ai/flows/generate-clothing-image.ts';
 import '@/ai/flows/generate-redress-image.ts';
 import '@/ai/flows/generate-person-image.ts';
 import '@/ai/flows/generate-video.ts';
+import '@/ai/flows/outpaint-image.ts';
