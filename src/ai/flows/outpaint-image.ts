@@ -9,8 +9,8 @@
  */
 
 import {z} from 'zod';
-import {v1} from '@google-cloud/aiplatform';
-import {helpers} from '@google-cloud/aiplatform';
+import {v1, helpers} from '@google-cloud/aiplatform';
+import Jimp from 'jimp';
 
 // Configure the client
 const {PredictionServiceClient} = v1;
@@ -35,27 +35,59 @@ const OutpaintImageOutputSchema = z.object({
       "The outpainted image, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
-export type OutpaintImageOutput = z.infer<
-  typeof OutpaintImageOutputSchema
->;
+export type OutpaintImageOutput = z.infer<typeof OutpaintImageOutputSchema>;
 
 export async function outpaintImage(
   input: OutpaintImageInput
 ): Promise<OutpaintImageOutput> {
-  const projectId = process.env.GCP_PROJECT || await predictionServiceClient.getProjectId();
+  const projectId =
+    process.env.GCP_PROJECT || (await predictionServiceClient.getProjectId());
   const location = 'us-central1';
 
   // This model supports image editing capabilities like outpainting.
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
 
-  const imageMimeType = input.imageDataUri.split(';')[0].split(':')[1];
   const imageBase64 = input.imageDataUri.split(',')[1];
+  const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+  // Use jimp to create a mask for outpainting
+  const image = await Jimp.read(imageBuffer);
+  const {width, height} = image.bitmap;
+
+  let targetWidth = width;
+  let targetHeight = height;
+  const targetAspectRatio = 16 / 9;
+  const originalAspectRatio = width / height;
+
+  if (originalAspectRatio < targetAspectRatio) {
+    // Image is taller than 16:9, so expand width
+    targetWidth = Math.round(height * targetAspectRatio);
+  } else if (originalAspectRatio > targetAspectRatio) {
+    // Image is wider than 16:9, so expand height
+    targetHeight = Math.round(width / targetAspectRatio);
+  } else {
+    // Image is already 16:9, no need to outpaint
+    return {generatedImageDataUri: input.imageDataUri};
+  }
+
+  const maskImage = image.clone();
+  // Resize canvas, letterboxing with black
+  maskImage.contain(targetWidth, targetHeight);
+  // Turn non-black parts white to create the final mask
+  maskImage.threshold({max: 1, autoGreyscale: true});
+
+  const maskBuffer = await maskImage.getBufferAsync(Jimp.MIME_PNG);
+  const maskBase64 = maskBuffer.toString('base64');
 
   const instance = {
-    prompt: `Outpaint this image by extending the scene on both sides to create a final image with a 16:9 aspect ratio. Fill the new areas with content that logically and aesthetically continues the original scene.`,
+    prompt: `Photorealistically outpaint this image by filling in the black areas of the mask. The filled areas should logically and aesthetically continue the original scene.`,
     image: {
       bytesBase64Encoded: imageBase64,
-      mimeType: imageMimeType,
+    },
+    mask: {
+      image: {
+        bytesBase64Encoded: maskBase64,
+      },
     },
   };
 
@@ -63,7 +95,7 @@ export async function outpaintImage(
 
   const parameters = helpers.toValue({
     sampleCount: 1,
-    aspectRatio: '16:9',
+    // Aspect ratio is now controlled by the mask
   });
 
   const request = {
