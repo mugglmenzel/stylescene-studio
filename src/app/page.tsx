@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play, Maximize } from 'lucide-react';
+import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play, Maximize, Minimize2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { outpaintImage } from '@/ai/flows/outpaint-image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+
+type ObjectFit = 'cover' | 'contain';
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -50,6 +52,11 @@ export default function StyleScenePage() {
 
   const [clothingText, setClothingText] = useState('');
   const [isGeneratingClothing, setIsGeneratingClothing] = useState(false);
+
+  const [personImageFit, setPersonImageFit] = useState<ObjectFit>('contain');
+  const [clothingImageFit, setClothingImageFit] = useState<ObjectFit>('contain');
+  const [redressedImageFit, setRedressedImageFit] = useState<ObjectFit>('cover');
+  const [finalImageFit, setFinalImageFit] = useState<ObjectFit>('cover');
 
   const { toast } = useToast();
 
@@ -359,13 +366,34 @@ export default function StyleScenePage() {
                     <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted flex-grow">
                       {isGeneratingPerson && <Skeleton className="h-full w-full" />}
                       {!isGeneratingPerson && personImage && (
-                        <Image
-                          src={personImage}
-                          alt="Uploaded or generated person"
-                          fill
-                          objectFit="contain"
-                          className="p-2"
-                        />
+                        <>
+                          <Image
+                            src={personImage}
+                            alt="Generated person"
+                            fill
+                            style={{ objectFit: personImageFit }}
+                            className={cn(personImageFit === 'contain' && 'p-2')}
+                          />
+                          <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-2">
+                            <Button
+                              onClick={() => handleDownload(personImage, 'person.png')}
+                              size="icon"
+                              className="h-9 w-9"
+                              aria-label="Download Person Image"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => setPersonImageFit(prev => prev === 'contain' ? 'cover' : 'contain')}
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 bg-background/50 backdrop-blur-sm"
+                              aria-label="Toggle Image Fit"
+                            >
+                              {personImageFit === 'contain' ? <Maximize className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </>
                       )}
                        {!isGeneratingPerson && !personImage && (
                         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
@@ -426,13 +454,34 @@ export default function StyleScenePage() {
                     <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted flex-grow">
                       {isGeneratingClothing && <Skeleton className="h-full w-full" />}
                       {!isGeneratingClothing && clothingImage && (
-                        <Image
-                          src={clothingImage}
-                          alt="Uploaded or generated clothing"
-                          fill
-                          objectFit="contain"
-                          className="p-2"
-                        />
+                        <>
+                          <Image
+                            src={clothingImage}
+                            alt="Generated clothing"
+                            fill
+                            style={{ objectFit: clothingImageFit }}
+                            className={cn(clothingImageFit === 'contain' && 'p-2')}
+                          />
+                          <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-2">
+                            <Button
+                              onClick={() => handleDownload(clothingImage, 'clothing.png')}
+                              size="icon"
+                              className="h-9 w-9"
+                              aria-label="Download Clothing Image"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => setClothingImageFit(prev => prev === 'contain' ? 'cover' : 'contain')}
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 bg-background/50 backdrop-blur-sm"
+                              aria-label="Toggle Image Fit"
+                            >
+                              {clothingImageFit === 'contain' ? <Maximize className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </>
                       )}
                        {!isGeneratingClothing && !clothingImage && (
                         <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
@@ -468,7 +517,7 @@ export default function StyleScenePage() {
                       src={redressedImage}
                       alt="Redressed person"
                       fill
-                      objectFit="cover"
+                      style={{ objectFit: redressedImageFit }}
                     />
                     <Button
                       onClick={() => handleDownload(redressedImage, 'redressed-image.png')}
@@ -481,6 +530,15 @@ export default function StyleScenePage() {
                       aria-label="Download Redressed Image"
                     >
                       <Download className="h-6 w-6" />
+                    </Button>
+                    <Button
+                      onClick={() => setRedressedImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                      size="icon"
+                      variant="outline"
+                      className="absolute bottom-4 left-4 z-10 h-12 w-12 rounded-full shadow-lg bg-background/50 backdrop-blur-sm"
+                      aria-label="Toggle Image Fit"
+                    >
+                      {redressedImageFit === 'cover' ? <Minimize2 className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
                     </Button>
                   </>
                 )}
@@ -560,7 +618,7 @@ export default function StyleScenePage() {
                         src={outpaintedImage || generatedImage!}
                         alt="Generated scene"
                         fill
-                        objectFit="cover"
+                        style={{ objectFit: finalImageFit }}
                         className="transition-opacity duration-500"
                       />
                       <Button
@@ -575,17 +633,28 @@ export default function StyleScenePage() {
                       >
                         <Download className="h-6 w-6" />
                       </Button>
-                      {generatedImage && !outpaintedImage && (
-                          <Button
-                              onClick={handleOutpaintImage}
-                              disabled={isOutpainting}
-                              className="absolute bottom-4 left-4 z-10 h-12 shadow-lg"
-                              variant="outline"
-                          >
-                              {isOutpainting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Maximize className="mr-2 h-4 w-4" />}
-                              Widen to 16:9
-                          </Button>
-                      )}
+                      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
+                        <Button
+                          onClick={() => setFinalImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                          size="icon"
+                          variant="outline"
+                          className="h-12 w-12 rounded-full shadow-lg bg-background/50 backdrop-blur-sm"
+                          aria-label="Toggle Image Fit"
+                        >
+                          {finalImageFit === 'cover' ? <Minimize2 className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
+                        </Button>
+                        {generatedImage && !outpaintedImage && (
+                            <Button
+                                onClick={handleOutpaintImage}
+                                disabled={isOutpainting}
+                                className="h-12 shadow-lg rounded-full bg-background/50 backdrop-blur-sm"
+                                variant="outline"
+                            >
+                                {isOutpainting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Maximize className="mr-2 h-4 w-4" />}
+                                Widen to 16:9
+                            </Button>
+                        )}
+                      </div>
                     </>
                   )}
                   {!(isGeneratingScene || isOutpainting) && !generatedImage && (

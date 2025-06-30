@@ -47,12 +47,14 @@ export async function outpaintImage(
   // This model supports image editing capabilities like outpainting.
   const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001`;
 
+  const imageMimeType = input.imageDataUri.split(';')[0].split(':')[1];
   const imageBase64 = input.imageDataUri.split(',')[1];
   const imageBuffer = Buffer.from(imageBase64, 'base64');
 
   // Use jimp to create a mask for outpainting
-  const image = await Jimp.read(imageBuffer);
-  const {width, height} = image.bitmap;
+  const resizeImage = await Jimp.read(imageBuffer);
+  const {width, height} = resizeImage.bitmap;
+  console.log('resizing image with width: %d, height: %d', width, height);
 
   let targetWidth = width;
   let targetHeight = height;
@@ -69,33 +71,57 @@ export async function outpaintImage(
     // Image is already 16:9, no need to outpaint
     return {generatedImageDataUri: input.imageDataUri};
   }
+  console.log('resizing image to width: %d, height: %d', targetWidth, targetHeight);
 
-  const maskImage = image.clone();
-  // Resize canvas, letterboxing with black
-  maskImage.contain(targetWidth, targetHeight);
-  // Turn non-black parts white to create the final mask
+  resizeImage.contain(targetWidth, targetHeight);
+
+  const maskImage = resizeImage.clone();
   maskImage.threshold({max: 1, autoGreyscale: true});
+  maskImage.invert();
+  console.log('resized image has width: %d, height: %d', maskImage.bitmap.width, maskImage.bitmap.height);
+
+  const resizeImageBuffer = await resizeImage.getBufferAsync(Jimp.MIME_PNG);
+  const resizeImageBase64 = resizeImageBuffer.toString('base64');
 
   const maskBuffer = await maskImage.getBufferAsync(Jimp.MIME_PNG);
   const maskBase64 = maskBuffer.toString('base64');
 
   const instance = {
-    prompt: `Photorealistically outpaint this image by filling in the black areas of the mask. The filled areas should logically and aesthetically continue the original scene.`,
-    image: {
-      bytesBase64Encoded: imageBase64,
-    },
-    mask: {
-      image: {
-        bytesBase64Encoded: maskBase64,
+    prompt: ``,
+    referenceImages: [
+      {
+        referenceType: "REFERENCE_TYPE_RAW",
+        referenceId: 1,
+        referenceImage: {
+          bytesBase64Encoded: resizeImageBase64,
+          mimeType: Jimp.MIME_PNG,
+        },
       },
-    },
+      {
+        referenceType: "REFERENCE_TYPE_MASK",
+        referenceId: 2,
+        referenceImage: {
+          bytesBase64Encoded: maskBase64,
+          mimeType: Jimp.MIME_PNG,
+        },
+        maskImageConfig: {
+          maskMode: "MASK_MODE_USER_PROVIDED"
+        }
+      },
+    ]
   };
 
   const instances = [helpers.toValue(instance)];
 
   const parameters = helpers.toValue({
     sampleCount: 1,
-    // Aspect ratio is now controlled by the mask
+    editMode: "EDIT_MODE_OUTPAINT",
+    editConfig: {
+      outpaintingConfig: {
+        blendingMode: "alpha-blending",
+        blendingFactor: 0.01,
+      },
+    }
   });
 
   const request = {
