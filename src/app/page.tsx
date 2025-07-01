@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play, Maximize, Minimize2 } from 'lucide-react';
+import { User, Shirt, Sparkles, Download, Palette, Wand2, Loader2, UploadCloud, Film, Play, Maximize, Minimize2, Brush } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,12 +37,14 @@ export default function StyleScenePage() {
   const [clothingImage, setClothingImage] = useState<string | null>(null);
   const [sceneDescription, setSceneDescription] = useState<string>('');
   const [redressedImage, setRedressedImage] = useState<string | null>(null);
+  const [stylizedImage, setStylizedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [outpaintedImage, setOutpaintedImage] = useState<string | null>(null);
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
 
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isGeneratingRedress, setIsGeneratingRedress] = useState(false);
+  const [isGeneratingStylized, setIsGeneratingStylized] = useState(false);
   const [isGeneratingScene, setIsGeneratingScene] = useState(false);
   const [isOutpainting, setIsOutpainting] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
@@ -52,10 +54,13 @@ export default function StyleScenePage() {
 
   const [clothingText, setClothingText] = useState('');
   const [isGeneratingClothing, setIsGeneratingClothing] = useState(false);
+  
+  const [stylizeDescription, setStylizeDescription] = useState<string>('');
 
   const [personImageFit, setPersonImageFit] = useState<ObjectFit>('contain');
   const [clothingImageFit, setClothingImageFit] = useState<ObjectFit>('contain');
   const [redressedImageFit, setRedressedImageFit] = useState<ObjectFit>('cover');
+  const [stylizedImageFit, setStylizedImageFit] = useState<ObjectFit>('cover');
   const [finalImageFit, setFinalImageFit] = useState<ObjectFit>('cover');
 
   const { toast } = useToast();
@@ -173,6 +178,7 @@ export default function StyleScenePage() {
 
     setIsGeneratingRedress(true);
     setRedressedImage(null);
+    setStylizedImage(null);
     setGeneratedImage(null);
     setOutpaintedImage(null);
     setGeneratedVideo(null);
@@ -195,12 +201,46 @@ export default function StyleScenePage() {
     }
   };
 
-  const handleGenerateScene = async () => {
-    if (!redressedImage || !sceneDescription) {
+  const handleGenerateStylizedImage = async () => {
+    if (!redressedImage || !stylizeDescription) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
-        description: 'Please generate a redressed image and provide a scene description.',
+        description: 'Please generate a redressed image and provide a style description.',
+      });
+      return;
+    }
+
+    setIsGeneratingStylized(true);
+    setStylizedImage(null);
+    setGeneratedImage(null);
+    setOutpaintedImage(null);
+    setGeneratedVideo(null);
+
+    try {
+      const result = await generateSceneImage({
+        personDataUri: redressedImage,
+        sceneDescription: stylizeDescription,
+      });
+      setStylizedImage(result.generatedImageDataUri);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Styling Failed',
+        description: 'Could not generate the stylized image. Please try again.',
+      });
+    } finally {
+      setIsGeneratingStylized(false);
+    }
+  };
+
+  const handleGenerateScene = async () => {
+    if (!stylizedImage || !sceneDescription) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please generate a stylized image and provide a scene description.',
       });
       return;
     }
@@ -212,7 +252,7 @@ export default function StyleScenePage() {
 
     try {
       const sceneResult = await generateSceneImage({
-        personDataUri: redressedImage,
+        personDataUri: stylizedImage,
         sceneDescription,
       });
       setGeneratedImage(sceneResult.generatedImageDataUri);
@@ -240,7 +280,7 @@ export default function StyleScenePage() {
 
     setIsOutpainting(true);
     setOutpaintedImage(null);
-    setGeneratedVideo(null); // Also reset video if we're changing the source image
+    setGeneratedVideo(null); 
 
     try {
       const result = await outpaintImage({ imageDataUri: generatedImage });
@@ -317,7 +357,6 @@ export default function StyleScenePage() {
             <h2 className="text-3xl font-bold tracking-tight">Step 1: Create Your Look</h2>
             <p className="text-muted-foreground mt-2">Start by providing an image of a person and a clothing item, either by uploading or generating with AI.</p>
           </div>
-          {/* Input Cards */}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <Card className="flex flex-col">
               <CardHeader>
@@ -499,7 +538,7 @@ export default function StyleScenePage() {
           <Card>
             <CardHeader>
               <CardTitle>Generate Redressed Image</CardTitle>
-              <CardDescription>Combine the person and clothing item to see the virtual try-on result. The result will be used in the next step.</CardDescription>
+              <CardDescription>Combine the person and clothing item to see the virtual try-on result. This is the input for the next step.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div className="flex flex-col gap-4 items-center text-center">
@@ -519,27 +558,25 @@ export default function StyleScenePage() {
                       fill
                       style={{ objectFit: redressedImageFit }}
                     />
-                    <Button
-                      onClick={() => handleDownload(redressedImage, 'redressed-image.png')}
-                      size="icon"
-                      className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
-                      style={{
-                          backgroundColor: 'hsl(var(--accent))',
-                          color: 'hsl(var(--accent-foreground))'
-                      }}
-                      aria-label="Download Redressed Image"
-                    >
-                      <Download className="h-6 w-6" />
-                    </Button>
-                    <Button
-                      onClick={() => setRedressedImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
-                      size="icon"
-                      variant="outline"
-                      className="absolute bottom-4 left-4 z-10 h-12 w-12 rounded-full shadow-lg bg-background/50 backdrop-blur-sm"
-                      aria-label="Toggle Image Fit"
-                    >
-                      {redressedImageFit === 'cover' ? <Minimize2 className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
-                    </Button>
+                    <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-2">
+                      <Button
+                        onClick={() => handleDownload(redressedImage, 'redressed-image.png')}
+                        size="icon"
+                        className="h-9 w-9"
+                        aria-label="Download Redressed Image"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => setRedressedImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                        size="icon"
+                        variant="outline"
+                        className="h-9 w-9 bg-background/50 backdrop-blur-sm"
+                        aria-label="Toggle Image Fit"
+                      >
+                        {redressedImageFit === 'cover' ? <Minimize2 className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </>
                 )}
                 {!isGeneratingRedress && !redressedImage && (
@@ -557,7 +594,96 @@ export default function StyleScenePage() {
 
         <div className={cn("space-y-8", !redressedImage && "opacity-50 pointer-events-none")}>
           <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Step 2: Set the Scene</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Step 2: Stylize Your Look</h2>
+            <p className="text-muted-foreground mt-2">Apply a creative style or edit to your look. This will be the input for the next step.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <Card className="flex flex-col">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brush className="h-6 w-6" />
+                    Style Description
+                  </CardTitle>
+                  <CardDescription>
+                    Describe the style you want to apply to the image.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 flex-grow">
+                  <Textarea
+                    placeholder="e.g., watercolor painting, vintage 1950s photograph, cinematic lighting..."
+                    className="min-h-[150px] resize-y"
+                    value={stylizeDescription}
+                    onChange={(e) => setStylizeDescription(e.target.value)}
+                  />
+              </CardContent>
+              <CardFooter>
+                  <Button
+                    onClick={handleGenerateStylizedImage}
+                    disabled={isGeneratingStylized || !redressedImage || !stylizeDescription}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isGeneratingStylized ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                    Apply Style
+                  </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="flex flex-col">
+              <CardHeader>
+                  <CardTitle>Stylized Image</CardTitle>
+                  <CardDescription>The creatively styled image will appear here.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted h-full">
+                  {isGeneratingStylized ? <Skeleton className="h-full w-full" /> : null}
+                  {stylizedImage && !isGeneratingStylized && (
+                    <>
+                      <Image
+                        src={stylizedImage}
+                        alt="Stylized image"
+                        fill
+                        style={{ objectFit: stylizedImageFit }}
+                        className="transition-opacity duration-500"
+                      />
+                      <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-2">
+                        <Button
+                          onClick={() => handleDownload(stylizedImage, 'stylized-image.png')}
+                          size="icon"
+                          className="h-9 w-9"
+                          aria-label="Download Stylized Image"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => setStylizedImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
+                          size="icon"
+                          variant="outline"
+                          className="h-9 w-9 bg-background/50 backdrop-blur-sm"
+                          aria-label="Toggle Image Fit"
+                        >
+                          {stylizedImageFit === 'cover' ? <Minimize2 className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                  {!(isGeneratingStylized) && !stylizedImage && (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground p-4 text-center">
+                      <Brush className="h-12 w-12" />
+                      <p className="text-sm">Your stylized image appears here</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className={cn("space-y-8", !stylizedImage && "opacity-50 pointer-events-none")}>
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Step 3: Set the Scene</h2>
             <p className="text-muted-foreground mt-2">Now, place your newly styled person in any scene you can imagine.</p>
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -568,7 +694,7 @@ export default function StyleScenePage() {
                     Scene Description
                   </CardTitle>
                   <CardDescription>
-                    Describe the final scene. Or, let AI suggest one based on your images!
+                    Describe the final scene. Or, let AI suggest one based on your original images!
                   </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
@@ -590,7 +716,7 @@ export default function StyleScenePage() {
               <CardFooter>
                   <Button
                     onClick={handleGenerateScene}
-                    disabled={isGeneratingScene || !redressedImage || !sceneDescription}
+                    disabled={isGeneratingScene || !stylizedImage || !sceneDescription}
                     className="w-full"
                     size="lg"
                     style={{
@@ -621,40 +747,42 @@ export default function StyleScenePage() {
                         style={{ objectFit: finalImageFit }}
                         className="transition-opacity duration-500"
                       />
-                      <Button
-                        onClick={() => handleDownload(outpaintedImage || generatedImage, 'final-scene.png')}
-                        size="icon"
-                        className="absolute bottom-4 right-4 z-10 h-12 w-12 rounded-full shadow-lg"
-                        style={{
-                            backgroundColor: 'hsl(var(--accent))',
-                            color: 'hsl(var(--accent-foreground))'
-                        }}
-                        aria-label="Download Final Image"
-                      >
-                        <Download className="h-6 w-6" />
-                      </Button>
-                      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2">
+                      <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
+                        <Button
+                          onClick={() => handleDownload(outpaintedImage || generatedImage, 'final-scene.png')}
+                          size="icon"
+                          className="h-9 w-9"
+                          style={{
+                              backgroundColor: 'hsl(var(--accent))',
+                              color: 'hsl(var(--accent-foreground))'
+                          }}
+                          aria-label="Download Final Image"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
                         <Button
                           onClick={() => setFinalImageFit(prev => prev === 'cover' ? 'contain' : 'cover')}
                           size="icon"
                           variant="outline"
-                          className="h-12 w-12 rounded-full shadow-lg bg-background/50 backdrop-blur-sm"
+                          className="h-9 w-9 bg-background/50 backdrop-blur-sm"
                           aria-label="Toggle Image Fit"
                         >
-                          {finalImageFit === 'cover' ? <Minimize2 className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
+                          {finalImageFit === 'cover' ? <Minimize2 className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
                         </Button>
-                        {generatedImage && !outpaintedImage && (
+                      </div>
+                      {generatedImage && !outpaintedImage && (
+                          <div className="absolute bottom-4 left-4 z-10">
                             <Button
                                 onClick={handleOutpaintImage}
                                 disabled={isOutpainting}
-                                className="h-12 shadow-lg rounded-full bg-background/50 backdrop-blur-sm"
+                                className="h-9 shadow-lg rounded-full bg-background/50 backdrop-blur-sm"
                                 variant="outline"
                             >
                                 {isOutpainting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Maximize className="mr-2 h-4 w-4" />}
                                 Widen to 16:9
                             </Button>
-                        )}
-                      </div>
+                          </div>
+                      )}
                     </>
                   )}
                   {!(isGeneratingScene || isOutpainting) && !generatedImage && (
@@ -673,7 +801,7 @@ export default function StyleScenePage() {
 
         <div className={cn("space-y-8", !(generatedImage || outpaintedImage) && "opacity-50 pointer-events-none")}>
           <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Step 3: Animate Your Scene</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Step 4: Animate Your Scene</h2>
             <p className="text-muted-foreground mt-2">Bring your creation to life by generating a short video.</p>
           </div>
           <Card>
