@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ImageUploader } from '@/components/image-uploader';
 import { suggestSceneDescription } from '@/ai/flows/suggest-scene-description';
 import { generateSceneImage } from '@/ai/flows/generate-scene-image';
+import { generateStyleImage } from '@/ai/flows/generate-style-image';
 import { generateClothingImage } from '@/ai/flows/generate-clothing-image';
 import { generateRedressImage } from '@/ai/flows/generate-redress-image';
 import { generatePersonImage } from '@/ai/flows/generate-person-image';
@@ -218,9 +219,9 @@ export default function StyleScenePage() {
     setGeneratedVideo(null);
 
     try {
-      const result = await generateSceneImage({
+      const result = await generateStyleImage({
         personDataUri: redressedImage,
-        sceneDescription: stylizeDescription,
+        stylizeDescription: stylizeDescription,
       });
       setStylizedImage(result.generatedImageDataUri);
     } catch (error) {

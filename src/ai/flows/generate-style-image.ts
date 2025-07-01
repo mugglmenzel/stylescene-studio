@@ -19,30 +19,30 @@ const clientOptions = {
 };
 const predictionServiceClient = new PredictionServiceClient(clientOptions);
 
-const GenerateSceneImageInputSchema = z.object({
+const GenerateStyleImageInputSchema = z.object({
   personDataUri: z
     .string()
     .describe(
       "A photo of a person, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  sceneDescription: z.string().describe('The description of the scene.'),
+  stylizeDescription: z.string().describe('The description of the style.'),
 });
-export type GenerateSceneImageInput = z.infer<typeof GenerateSceneImageInputSchema>;
+export type GenerateStyleImageInput = z.infer<typeof GenerateStyleImageInputSchema>;
 
-const GenerateSceneImageOutputSchema = z.object({
+const GenerateStyleImageOutputSchema = z.object({
   generatedImageDataUri: z
     .string()
     .describe(
       "The generated image, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
-export type GenerateSceneImageOutput = z.infer<
-  typeof GenerateSceneImageOutputSchema
+export type GenerateStyleImageOutput = z.infer<
+  typeof GenerateStyleImageOutputSchema
 >;
 
-export async function generateSceneImage(
-  input: GenerateSceneImageInput
-): Promise<GenerateSceneImageOutput> {
+export async function generateStyleImage(
+  input: GenerateStyleImageInput
+): Promise<GenerateStyleImageOutput> {
   // Use the client to automatically discover the project ID
   const projectId = process.env.GCP_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
@@ -70,7 +70,7 @@ export async function generateSceneImage(
 
     const response = await ai.models.editImage({
       model: 'imagen-3.0-capability-001',
-      prompt: `Generate a photorealistic image of the person [1] from the reference image in this scene: "${input.sceneDescription}". The final image should be a coherent and high-quality photograph.`,
+      prompt: `Generate a photorealistic image of the person [1] from the reference image in this scene: "${input.stylizeDescription}". The final image should be a coherent and high-quality photograph.`,
       referenceImages: [referenceImage],
       config: {
         aspectRatio: '16:9',
