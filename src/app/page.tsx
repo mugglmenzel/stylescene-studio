@@ -595,23 +595,23 @@ export default function StyleScenePage() {
 
         <div className={cn("space-y-8", !redressedImage && "opacity-50 pointer-events-none")}>
           <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Step 2: Stylize Your Look</h2>
-            <p className="text-muted-foreground mt-2">Apply a creative style or edit to your look. This will be the input for the next step.</p>
+            <h2 className="text-3xl font-bold tracking-tight">Step 2: Add an item</h2>
+            <p className="text-muted-foreground mt-2">Edit your look and features or items to the person. This will be the input for the next step.</p>
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <Card className="flex flex-col">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Brush className="h-6 w-6" />
-                    Style Description
+                    Item Description
                   </CardTitle>
                   <CardDescription>
-                    Describe the style you want to apply to the image.
+                    Describe the modifications or item you want to apply to the person in the image.
                   </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
                   <Textarea
-                    placeholder="e.g., watercolor painting, vintage 1950s photograph, cinematic lighting..."
+                    placeholder="e.g., hat, glasses, cup, racket..."
                     className="min-h-[150px] resize-y"
                     value={stylizeDescription}
                     onChange={(e) => setStylizeDescription(e.target.value)}
@@ -625,15 +625,15 @@ export default function StyleScenePage() {
                     size="lg"
                   >
                     {isGeneratingStylized ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                    Apply Style
+                    Apply Changes
                   </Button>
               </CardFooter>
             </Card>
 
             <Card className="flex flex-col">
               <CardHeader>
-                  <CardTitle>Stylized Image</CardTitle>
-                  <CardDescription>The creatively styled image will appear here.</CardDescription>
+                  <CardTitle>Modified Image</CardTitle>
+                  <CardDescription>The creatively modified image will appear here.</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted h-full">

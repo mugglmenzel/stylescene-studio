@@ -10,7 +10,7 @@
 
 import {z} from 'zod';
 import {v1} from '@google-cloud/aiplatform';
-import { EditMode, GoogleGenAI, SubjectReferenceImage, SubjectReferenceType } from '@google/genai';
+import { EditMode, GoogleGenAI, MaskReferenceImage, MaskReferenceMode, RawReferenceImage, SubjectReferenceImage, SubjectReferenceType } from '@google/genai';
 
 // Configure the client
 const {PredictionServiceClient} = v1;
@@ -57,20 +57,32 @@ export async function generateStyleImage(
   const personImageBase64 = input.personDataUri.split(',')[1];
 
   try {
-    const referenceImage = new SubjectReferenceImage();
+    if (input.stylizeDescription === 'nothing') {
+      return { generatedImageDataUri: input.personDataUri };
+    }
+
+    const referenceImage = new RawReferenceImage();
     referenceImage.referenceId = 1;
     referenceImage.referenceImage = {
       imageBytes: personImageBase64,
       mimeType: personImageMimeType,
     };
+    /*
     referenceImage.config = {
       subjectDescription: 'the person',
       subjectType: SubjectReferenceType.SUBJECT_TYPE_PERSON,
     };
+    */
+    const maskImage = new MaskReferenceImage();
+    maskImage.referenceId = 2;
+    maskImage.config = {
+      maskMode: MaskReferenceMode.MASK_MODE_FOREGROUND
+
+    };
 
     const response = await ai.models.editImage({
       model: 'imagen-3.0-capability-001',
-      prompt: `Generate a photorealistic image of the person [1] from the reference image in this scene: "${input.stylizeDescription}". The final image should be a coherent and high-quality photograph.`,
+      prompt: `Generate a photorealistic image of the person [1] from the reference image with this change: "${input.stylizeDescription}". The final image should be a coherent and high-quality photograph.`,
       referenceImages: [referenceImage],
       config: {
         aspectRatio: '16:9',
