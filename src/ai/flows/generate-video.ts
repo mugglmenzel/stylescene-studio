@@ -60,7 +60,7 @@ export async function generateVideo(
     let operation = await ai.models.generateVideos(
       {
         model: 'veo-2.0-generate-001',
-        prompt: "Animate this image with subtle motion. The background can have a gentle breeze effect, and the person's clothes and hair can sway slightly. The person's expression should remain neutral.",
+        prompt: "Animate this image with subtle motion. The person's expression should remain neutral.",
         image: {
           imageBytes: imageBase64,
           mimeType: imageMimeType,
