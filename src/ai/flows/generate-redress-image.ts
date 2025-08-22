@@ -50,7 +50,7 @@ export async function generateRedressImage(
   const projectId = process.env.GCP_PROJECT || await predictionServiceClient.getProjectId();
   const location = 'us-central1';
 
-  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/virtual-try-on-exp-05-31`;
+  const endpoint = `projects/${projectId}/locations/${location}/publishers/google/models/virtual-try-on-preview-08-04`;
 
   const personImageMimeType = input.personDataUri.split(';')[0].split(':')[1];
   const personImageBase64 = input.personDataUri.split(',')[1];
